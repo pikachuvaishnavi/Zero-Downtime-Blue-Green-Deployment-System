@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+
+  blue:
+    build: ./app
+    container_name: blue
+    environment:
+      - APP_VERSION=BLUE v1
+      - APP_COLOR=blue
+    ports:
+    - "5001:5000"
+
+  green:
+    build: ./app
+    container_name: green
+    environment:
+      - APP_VERSION=GREEN v2
+      - APP_COLOR=green
+    ports:
+    - "5002:5000"
+
+  nginx:
+    image: nginx
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - blue
+      - green
