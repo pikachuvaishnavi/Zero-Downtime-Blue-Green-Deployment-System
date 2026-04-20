@@ -5,8 +5,7 @@ CONF="nginx/nginx.conf"
 # Detect current active server
 CURRENT=$(grep -E "^\s*server (blue|green):5000;" $CONF | grep -v "#" | awk '{print $2}' | cut -d':' -f1)
 
-# fallback if detection fails
-[ -z "$CURRENT" ] && CURRENT="green"
+[ -z "$CURRENT" ] && CURRENT="blue"
 
 if [ "$CURRENT" == "blue" ]; then
     TARGET="green"
@@ -16,26 +15,19 @@ else
     PORT=5001
 fi
 
-echo "Switching $CURRENT → $TARGET"
+echo "🔍 Current: $CURRENT | Checking: $TARGET"
 
 # Health check
-echo "⏳ Checking health..."
-
-for i in {1..10}; do
-    STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/health)
-    [ "$STATUS" == "200" ] && break
-    echo "Retry $i..."
-    sleep 2
-done
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/health)
 
 if [ "$STATUS" != "200" ]; then
-    echo "❌ Target unhealthy"
-    exit 1
+    echo "❌ $TARGET is not healthy. No switch."
+    exit 0
 fi
 
-echo "🔁 Switching traffic..."
+echo "✅ $TARGET is healthy → switching..."
 
-# SAFE REWRITE of upstream block ONLY
+# Replace upstream block safely
 if [ "$TARGET" == "blue" ]; then
     sed -i '/upstream backend {/,/}/c\
     upstream backend {\
@@ -50,9 +42,9 @@ else
     }' $CONF
 fi
 
-# Validate config BEFORE reload
+# Validate config
 docker exec nginx nginx -t || { echo "❌ Bad config"; exit 1; }
 
 docker exec nginx nginx -s reload
 
-echo "✅ Switched successfully!"
+echo "🚀 Auto switch complete!"
