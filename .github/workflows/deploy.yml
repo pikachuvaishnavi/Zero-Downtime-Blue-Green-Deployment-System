@@ -1,27 +1,33 @@
-name: Deploy
+name: Blue-Green Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SERVER_IP }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-
-        script: |
-          cd blue-green-devops
-          git pull origin main
-          docker-compose down
-          docker-compose up --build -d
-          sleep 10
-          bash switch.sh
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /mnt/d/study/projects/blue_green_deployment/blue-green-deploy
+            
+            echo "📥 Pulling latest code..."
+            git pull
+            
+            echo "🐳 Rebuilding containers..."
+            docker-compose down
+            docker-compose up -d --build
+            
+            echo "⏳ Waiting for services..."
+            sleep 10
+            
+            echo "🔁 Running auto switch..."
+            ./auto-switch.sh
